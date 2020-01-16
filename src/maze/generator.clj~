@@ -1,0 +1,145 @@
+(ns maze.generator
+  (:require [clojure.pprint :refer (cl-format)]
+            [clojure.set :as set]
+            [quil.core :as q]))
+
+(def board {:width 15 :height 15})
+
+(def corners #{[0 0] [0 (board :height)] [(board :width) 0] [(board :width) (board :height)]})
+
+(def cell-size 20)
+
+(def dir {1 :N 2 :S 4 :E 8 :W})
+
+(defn init-maze
+  [w h]
+  (into [] (repeat h (into [] (repeat w 0)))))
+
+(defn get-neighbour
+  [pt width height]
+  (let [[x y] pt]
+    (->> [[(dec x) y] [(inc x) y] [x (dec y)] [x (inc y)]]
+         (filter #(>= (first %) 0))
+         (filter #(< (first %) width))
+         (filter #(>= (second %) 0))
+         (filter #(< (second %) height)))))
+  
+(defn carve-maze
+  [maze pt1 pt2]
+  """
+  Assume pt1 and pt2 are adjacent. Futhermore, it is either that
+  i) pt1 is above pt2 (dx=0, dy=-1) or
+  ii) pt1 is to the left of pt2 (dx=-1, dy=0)
+  """
+  (let [[dx dy] (vec (map - pt1 pt2))]
+    (if (some pos? [dx dy]) ;; The assumption doesn't hold
+      (carve-maze maze pt2 pt1) ;; flip the points
+      ;; The following is the else clause
+      ;; fn update-in takes the element from a nested vec
+      ;; by y-coordinate first and then by x-coordinate
+      (let [fpt1 (reverse pt1)
+            fpt2 (reverse pt2)]
+        (cond
+          ;; Assumption i) holds: pt1 is above pt2
+          (zero? dx) (update-in (update-in maze fpt1 bit-or 2r0010)
+                                fpt2 bit-or 2r0001)
+          ;; Assumption ii) holds: pt1 is to the left of pt2
+          (zero? dy) (update-in (update-in maze fpt1 bit-or 2r0100)
+                                fpt2 bit-or 2r1000))))))
+
+(defn visit?
+  [pt visited]
+  (some #(= % pt) visited))
+  
+
+(defn create-maze
+  [width height x y]
+  """
+  x, y: starting of the maze
+  """
+  (loop [maze (init-maze width height)
+         stack [[x y]] ;; vec is used to preserve the sequence
+         visited [[x y]]]
+    (if (empty? stack)
+      maze
+      (let [v            (peek stack)
+            neighbours   (get-neighbour v width height)
+            not-visited  (filter (complement #(visit? % visited)) neighbours)]
+        (if (not-empty not-visited)
+          (let [cpt (rand-nth not-visited)] ;; pick a random point from the neighbours
+            (recur (carve-maze maze v cpt) (conj stack cpt) (conj visited cpt)))
+          (recur maze (pop stack) visited))))))
+
+
+
+
+             
+;; -----------------------------------------------------------------------------------
+;; Draw
+;; -----------------------------------------------------------------------------------
+
+(defn get-not-carved
+  [carved]
+  """carve: binary whose each digit show which side is carved"""
+  (let [not-carved (bit-and-not 2r1111 carved)] ;; the product binary shows which is the wall
+    (vals (select-keys dir (map #(bit-and % not-carved) (keys dir))))))
+
+(defn multi-by-cell-size
+  [pt]
+  """pt: vec [x y]"""
+  (vec (map #(* cell-size %) pt)))
+
+(defn draw-square-side
+  [x y dir]
+  """dir is one of the keywords :N, :E, :S and :E."""
+
+  (let [left-up      [x y]
+        left-bottom  [x (inc y)]
+        right-up     [(inc x) y]
+        right-bottom [(inc x) (inc y)]]
+    (let [sides {:N [left-up right-up]
+                 :W [left-up left-bottom]
+                 :E [right-up right-bottom]
+                 :S [left-bottom right-bottom]}]
+      (apply q/line (vec (map multi-by-cell-size (sides dir)))))))
+
+(defn draw-square
+  [x y carved]
+  (let [f (partial draw-square-side x y)]
+    (doseq [walls (get-not-carved carved)]
+      (f walls))))
+    
+(defn draw-maze
+  [maze]
+  (q/stroke-weight 2)
+  (let [width (count (get maze 0))
+        height (count maze)]
+    (doseq [x (range width) ;; for loop doesn't work
+            y (range height)]
+      (draw-square x y (get-in maze [y x]))))
+  (q/stroke-weight 1))
+
+;; ---------------------------------------------------------------------------------
+
+(def mymaze (create-maze (board :width) (board :height) 0 0))
+
+(defn draw []
+  ;;(draw-maze (init-maze (board :width) (board :height))))
+  ;;(draw-maze (carve-maze (init-maze (board :width) (board :height)) [1 1] [2 1])))
+  ;;(draw-maze [[2r0100 0 0] [2r1000 0 0] [0 0 0]]))
+  ;;(draw-maze (carve-maze (init-maze 3 3) [1 1] [1 2])))
+  ;;(def mymaze (create-maze 5 5 0 0))
+  ;;(def mymaze [[2 4 14 12 10] [5 10 3 4 11] [6 9 5 10 1] [3 6 10 5 10] [5 9 5 12 9]])
+  
+  (draw-maze mymaze))
+  ;;(draw-maze [[ 2r0100 2r1000 0] [0 0 0] [0 0 0]]))
+  ;;(draw-square 1 1 2r1000))
+  ;;(draw-square 0 1 0))
+  ;;(draw-square-side 1 1 :E))
+  ;;(apply q/line (vec (map multi-by-cell-size [[5 5] [6 5]]))))
+  ;(apply q/line [[50 50] [60 50]]))
+  
+(q/defsketch maze
+  :size [300 300]
+  :draw draw)
+    

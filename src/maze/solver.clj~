@@ -1,0 +1,115 @@
+(ns my-sketch.maze-solver
+  (:require [quil.core :as q]
+            [my-sketch.maze :as maze]))
+
+;;(def dir {1 :N 2 :S 4 :E 8 :W})
+
+(def cell-size 20)
+
+(def dir {1 [0 -1] 2 [0 1] 4 [1 0] 8 [-1 0]})
+
+(defn add-points
+  [& pts]
+  (vec (apply map + pts)))
+
+(def select-vals (comp vec vals select-keys))
+
+(defn get-neighbour
+  ([maze x y]
+  (let [key       (get-in maze [y x])
+        match-key (map #(bit-and % key) (keys dir))
+        dir       (select-vals dir match-key)]
+    (vec (map #(add-points [x y] %) dir))))
+  ([maze [x y]]
+   (get-neighbour maze x y)))
+
+(defn visit?
+  [pt visited]
+  (some #(= % pt) visited))
+
+(defn dfs-solver
+  [maze x1 y1 x2 y2]
+  """
+  x1, y1: starting point
+  x2, y2: end point
+
+  Return: a rope from (x1, y1) to (x2, y2)
+  """
+  ;; 1) initialization: current point, cpt=(x1, y1), put cpt into stack and mark cpt as visited 
+  ;; 2) while cpt != end point (x2 y2)
+  ;;       3) get the neighbour of cpt
+  ;;       4) pick the unvisited point from the neighbour
+  ;;            5) if not neighbour, the cpt is a dead end, remove cpt from the stack and pop the stack and set
+  ;;            6) visit the point, mark this point as cpt and visited, put into stack
+  (loop [cpt [x1 y1]
+         thread [cpt]
+         visited [cpt]]
+    (if (= cpt [x2 y2])
+      thread
+      (let [neighbours (get-neighbour maze cpt)
+            not-visited (filter (complement #(visit? % visited)) neighbours)]
+        (if (not-empty not-visited)
+          (let [npt (rand-nth not-visited)]
+            (recur npt (conj thread npt) (conj visited npt)))
+          (let [rolled-thread (pop thread)] ;; At dead end, so step back
+            (recur (peek rolled-thread) rolled-thread visited)))))))
+
+(defn draw-step
+  ([x y]
+   (let [semi-red (q/color 255 0 0 120)]
+     ;(q/no-stroke)
+     (q/fill semi-red)
+     (q/rect (* cell-size x) (* cell-size y) cell-size cell-size)))
+     ;(q/stroke 0)))
+  ([[x y]]
+   (draw-step x y)))
+
+(defn draw-path
+  [path]
+  (q/no-stroke)
+  (doseq [step path]
+    (draw-step step))
+  (q/stroke 0))
+
+;;(def my-maze (maze/create-maze 5 5 0 0))
+(def my-maze [[4 10 6 12 10] [6 9 3 4 9] [5 10 5 12 10] [2 3 6 12 11] [5 13 9 4 9]]) 
+
+(def my-maze2 [[4 10 6 12 12 14 12 10 6 10 6 12 12 12 10]
+ [2 3 3 6 8 3 2 5 9 3 3 6 12 12 11]
+ [7 9 5 11 6 9 5 12 12 11 3 5 10 4 9]
+ [5 12 10 3 5 12 12 12 10 3 1 6 11 6 10]
+ [2 6 9 3 6 10 6 10 3 5 12 9 3 3 3]
+ [3 5 10 3 3 1 3 5 9 2 6 12 9 3 3]
+ [3 6 9 3 3 6 9 6 12 13 9 6 12 9 3]
+ [7 9 4 13 9 5 10 5 8 6 12 9 6 12 9]
+ [3 4 14 12 12 10 7 12 12 9 4 10 5 12 10]
+ [3 6 9 6 12 9 5 12 10 6 10 5 12 10 3]
+ [5 9 2 3 4 10 6 12 9 3 5 12 12 11 3]
+ [6 12 9 5 10 3 5 12 10 3 6 8 6 9 3]
+ [5 12 14 8 3 3 6 12 13 9 7 12 9 6 9]
+ [6 12 9 6 9 5 9 6 12 10 1 6 10 5 10]
+               [5 12 12 13 12 12 12 9 4 13 12 9 5 12 9]])
+
+(def my-maze3 (maze/create-maze 15 15 0 0))
+
+(def my-path (dfs-solver my-maze3 0 0 14 14))
+
+(defn draw []
+  (q/background 255)
+  ;(draw-step [1 1])
+  (draw-path my-path)
+  (maze/draw-maze my-maze3))
+  ;(draw-step [1 1]))
+  ;(q/rect (* cell-size 1) (* cell-size 1) cell-size cell-size))
+                                       ;(q/rect 20 20 20 20))
+                           ;             (draw-step [1 1]))  
+    ;(let [semi-red (q/color 255 0 0 120)]
+    ;(q/no-stroke)
+    ;(q/fill semi-red)
+    ;(q/rect (* cell-size 1) (* cell-size 1) (cell-size) (cell-size)))
+
+
+(q/defsketch maze
+  :host "host"
+  :size [300 300]
+  :draw draw)
