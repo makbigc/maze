@@ -89,7 +89,89 @@
           (let [cpt (rand-nth not-visited)] ;; pick a random point from the neighbours
             (recur (carve-maze maze v cpt) (conj stack cpt) (conj visited cpt)))
           (recur maze (pop stack) visited))))))
-             
+
+;; -----------------------------------------------------------------------------------
+;; Kruskal's Algo
+;; -----------------------------------------------------------------------------------
+
+(def cells (for [x (range (board :width))
+                y (range (board :height))]
+             [x y]))
+
+(def vertical-edges
+(->> (for [x (range (board :width))
+           y (range (board :height))]
+       [x y])
+     (partition (board :height))
+     (map #(partition 2 1 %))
+     (apply concat))
+  )
+
+(def horizontal-edges
+(->> (for [x (range (board :width))
+           y (range (board :height))]
+       [y x])
+     (partition (board :width))
+     (map #(partition 2 1 %))
+     (apply concat))
+  )
+
+(defn init-edges
+  []
+  (concat horizontal-edges vertical-edges))
+
+(defn init-parent
+  []
+  (zipmap cells cells))
+
+(defn init-rank
+  []
+  (zipmap cells
+          (take (* (board :width) (board :height)) (repeat 0))))
+
+(defn find-root
+  [parent pos]
+  (if (= (parent pos) pos)
+    pos
+    (find-root parent (parent pos))))
+
+(defn update-parent
+  [parent rank pos1 pos2]
+  (let [rank1 (rank pos1)
+        rank2 (rank pos2)]
+    (if (> rank1 rank2)
+      (assoc parent pos2 pos1)
+      (assoc parent pos1 pos2))))
+
+(defn update-rank
+  [rank pos1 pos2]
+  (let [rank1 (rank pos1)
+        rank2 (rank pos2)]
+    (if (= rank1 rank2)
+      (update rank pos2 inc)
+      rank)))
+
+(defn kruskal-maze-gen
+  [width height]
+  (loop [maze   (init-maze width height)
+         edges  (shuffle (init-edges))
+         parent (init-parent)
+         rank   (init-rank)]
+    (if (empty? edges)
+      maze
+      (let [[pt1 pt2] (peek edges)
+            root1 (find-root parent pt1)
+            root2 (find-root parent pt2)]
+        (if (not= root1 root2) ; pt1 and pt2 aren't connected
+          (recur (carve-maze maze pt1 pt2)
+                 (pop edges)
+                 (update-parent parent rank root1 root2)
+                 (update-rank rank root1 root2))
+          (recur maze
+                 (pop edges)
+                 parent
+                 rank))))))
+
 ;; -----------------------------------------------------------------------------------
 ;; Draw
 ;; -----------------------------------------------------------------------------------

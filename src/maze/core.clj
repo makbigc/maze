@@ -3,7 +3,8 @@
             [maze.generator :as gen]
             [maze.solver :as solver]))
 
-(def my-maze (gen/create-maze 15 15 0 0))
+;(def my-maze (gen/dfs-maze-gen 15 15 0 0))
+(def my-maze (gen/kruskal-maze-gen 15 15))
 
 (def my-path (solver/dfs-solver my-maze 0 0 14 14))
 
