@@ -173,6 +173,47 @@
                  rank))))))
 
 ;; -----------------------------------------------------------------------------------
+;; Prim's Algo
+;; -----------------------------------------------------------------------------------
+
+(defn get-new-edges
+  [pt width height visited]
+  (for [neighbour (get-neighbour pt width height)
+        new-neighbour (filter (complement #(visit? % visited)) neighbour]
+    (list pt new-neighbour)))
+
+(defn get-new-vertex
+  [edge visited]
+  (let [[pt1 pt2] edge
+        not-visit? (complement #(visit? % visited))]
+    (cond
+      (not-visit? pt1) pt1
+      (not-visit? pt2) pt2
+      :else nil)))
+
+(defn prim-maze-gen
+  [maze width height]
+  (let [start-pt [(rand-int width) (rand-int height)]]
+    (loop [maze            (init-maze width height)
+           visited         [start-pt]
+           connected-edges (get-new-edges start-pt width height visited)]
+      (if (= (count visited) (* width height))
+        maze
+        (let [edge       (rand-nth connected-edges)
+              new-vertex (get-new-vertex edge)
+              [pt1 pt2]  edge]
+          (if (nil? new-vertex)
+            (recur maze (remove #(= % edge) connected-edges) visited)
+            (let [new-edges (get-new-edges new-vertex width height visited)]
+              (recur (carve-maze maze pt1 pt2)
+                     (into (remove #(= % edge) connected-edges) new-edges)
+                     (into visited new-vertex)))))))))
+
+
+
+
+
+;; -----------------------------------------------------------------------------------
 ;; Draw
 ;; -----------------------------------------------------------------------------------
 
