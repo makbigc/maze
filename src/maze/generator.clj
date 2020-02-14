@@ -178,9 +178,9 @@
 
 (defn get-new-edges
   [pt width height visited]
-  (for [neighbour (get-neighbour pt width height)
-        new-neighbour (filter (complement #(visit? % visited)) neighbour]
-    (list pt new-neighbour)))
+  (let [neighbour (get-neighbour pt width height)]
+    (for [new-neighbour (filter (complement #(visit? % visited)) neighbour)]
+      (list pt new-neighbour))))
 
 (defn get-new-vertex
   [edge visited]
