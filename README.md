@@ -1,6 +1,9 @@
 # maze
 
-A Quil sketch designed to ... well, that part is up to you.
+A Clojure implementation of maze generation algo and maze solving algo.
+
+![maze example](maze.png)
+
 
 ## Usage
 
